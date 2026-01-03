@@ -23,7 +23,7 @@ dependencies:
   permission_handler: ^11.3.0
   flutter_local_notifications: ^16.1.0
   audioplayers: ^5.2.1
-  easy_geofencing: ^0.0.5
+  easy_geofencing: ^0.0.2
   auto_route: ^7.8.3
   uuid: ^4.2.2
   cupertino_icons: ^1.0.2

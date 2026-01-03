@@ -1,0 +1,70 @@
+import 'package:injectable/injectable.dart';
+import 'package:isar/isar.dart';
+import '../../domain/entities/alarm.dart';
+import '../../domain/repositories/i_alarm_repository.dart';
+import '../models/alarm_model.dart';
+
+@LazySingleton(as: IAlarmRepository)
+class IsarAlarmRepository implements IAlarmRepository {
+  late Future<Isar> _db;
+
+  IsarAlarmRepository() {
+    _db = _openDB();
+  }
+
+  Future<Isar> _openDB() async {
+    if (Isar.instanceNames.isEmpty) {
+      final dir = await getApplicationDocumentsDirectory();
+      return await Isar.open(
+        [AlarmModelSchema],
+        directory: dir.path,
+      );
+    }
+    return Isar.getInstance()!;
+  }
+
+  @override
+  Future<void> saveAlarm(Alarm alarm) async {
+    final isar = await _db;
+    final model = AlarmModel.fromEntity(alarm);
+    await isar.writeTxn(() async {
+      await isar.alarmModels.put(model);
+    });
+  }
+// ... rest of methods will use await _db
+
+  @override
+  Future<void> deleteAlarm(String id) async {
+    final isar = await _db;
+    await isar.writeTxn(() async {
+      await isar.alarmModels.delete(fastHash(id));
+    });
+  }
+
+  @override
+  Future<List<Alarm>> getAlarms() async {
+    final isar = await _db;
+    final models = await isar.alarmModels.where().findAll();
+    return models.toList();
+  }
+
+  @override
+  Future<void> toggleAlarmStatus(String id) async {
+    final isar = await _db;
+    await isar.writeTxn(() async {
+      final alarm = await isar.alarmModels.get(fastHash(id));
+      if (alarm != null) {
+        final updated = AlarmModel(
+          id: alarm.id,
+          latitude: alarm.latitude,
+          longitude: alarm.longitude,
+          radius: alarm.radius,
+          label: alarm.label,
+          isActive: !alarm.isActive,
+          createdAt: alarm.createdAt,
+        );
+        await isar.alarmModels.put(updated);
+      }
+    });
+  }
+}

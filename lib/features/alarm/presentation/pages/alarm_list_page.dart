@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../blocs/alarm_cubit.dart';
-import '../blocs/alarm_state.dart';
-import '../domain/entities/alarm.dart';
-import 'map_page.dart';
-import 'developer_mode_page.dart';
+import 'package:geo_alarm/features/alarm/presentation/blocs/alarm_cubit.dart';
+import 'package:geo_alarm/features/alarm/presentation/blocs/alarm_state.dart';
+import 'package:geo_alarm/features/alarm/domain/entities/alarm.dart';
+import 'package:geo_alarm/features/alarm/presentation/pages/map_page.dart';
+import 'package:geo_alarm/features/alarm/presentation/pages/developer_mode_page.dart';
 
 class AlarmListPage extends StatelessWidget {
   const AlarmListPage({super.key});

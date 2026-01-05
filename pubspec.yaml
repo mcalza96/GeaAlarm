@@ -9,22 +9,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_bloc: ^8.1.3
+  flutter_bloc: ^9.1.1
   dartz: ^0.10.1
-  get_it: ^7.6.4
-  injectable: ^2.3.2
+  get_it: ^8.0.2
+  injectable: ^2.7.1
   equatable: ^2.0.5
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   path_provider: ^2.1.1
-  geolocator: ^10.1.0
-  google_maps_flutter: ^2.5.0
-  geocoding: ^2.1.1
-  permission_handler: ^11.3.0
-  flutter_local_notifications: ^16.1.0
-  audioplayers: ^5.2.1
-  easy_geofencing: ^0.0.2
-  auto_route: ^7.8.3
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.14.0
+  geocoding: ^4.0.0
+  permission_handler: ^12.0.1
+  flutter_local_notifications: ^19.5.0
+  audioplayers: ^6.5.1
+  auto_route: ^11.1.0
   uuid: ^4.2.2
   cupertino_icons: ^1.0.2
 
@@ -33,8 +32,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^2.0.0
   build_runner: ^2.4.6
-  injectable_generator: ^2.4.1
+  injectable_generator: ^2.4.2
   isar_generator: ^3.1.0+1
+  mocktail: ^1.0.3
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/sounds/

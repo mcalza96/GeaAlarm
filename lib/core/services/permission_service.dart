@@ -33,6 +33,7 @@ class PermissionService {
     // 3. Request Always
     final always = await Permission.locationAlways.request();
     if (always.isDenied) {
+      if (!context.mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

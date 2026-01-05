@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:injectable/injectable.dart';
 
@@ -23,7 +24,7 @@ class LoggerService implements ILoggerService {
       '[$timestamp] $message\n',
       mode: FileMode.append,
     );
-    print('LOG: $message'); // Also print to console
+    debugPrint('LOG: $message'); // Also print to console
   }
 
   @override

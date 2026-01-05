@@ -1,15 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:injectable/injectable.dart';
 
-abstract class INotificationService {
-  Future<void> init();
-  Future<void> showAlarmNotification({
-    required String id,
-    required String title,
-    required String body,
-  });
-  Future<void> cancelNotification(int id);
-}
+import 'i_notification_service.dart';
 
 @LazySingleton(as: INotificationService)
 class NotificationServiceImpl implements INotificationService {
@@ -24,7 +16,7 @@ class NotificationServiceImpl implements INotificationService {
       requestSoundPermission: true,
       requestCriticalPermission: true,
     );
-    
+
     await _notifications.initialize(
       const InitializationSettings(android: android, iOS: ios),
     );
@@ -39,7 +31,8 @@ class NotificationServiceImpl implements INotificationService {
     const android = AndroidNotificationDetails(
       'alarm_channel',
       'Alarmas de Destino',
-      channelDescription: 'Notificaciones para despertarte al llegar a tu destino',
+      channelDescription:
+          'Notificaciones para despertarte al llegar a tu destino',
       importance: Importance.max,
       priority: Priority.high,
       fullScreenIntent: true,

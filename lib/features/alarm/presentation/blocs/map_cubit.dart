@@ -35,11 +35,36 @@ class MapCubit extends Cubit<MapState> {
     );
   }
 
+  void searchAddress(String address) async {
+    emit(state.copyWith(isLoadingAddress: true, errorMessage: null));
+
+    final result = await mapService.getCoordsFromAddress(address);
+
+    result.fold(
+      (failure) => emit(state.copyWith(
+        isLoadingAddress: false,
+        errorMessage: failure.message,
+      )),
+      (coords) {
+        final location = LatLng(coords[0], coords[1]);
+        emit(state.copyWith(
+          selectedLocation: location,
+          isLoadingAddress: false,
+          currentAddress: address,
+        ));
+      },
+    );
+  }
+
   void updateRadius(double radius) {
     emit(state.copyWith(currentRadius: radius));
   }
 
   void resetSelection() {
     emit(const MapState());
+  }
+
+  void selectAsDestination(LatLng location) async {
+    selectLocation(location);
   }
 }

@@ -25,7 +25,8 @@ void main() {
     );
   }
 
-  testWidgets('Should display empty state when no alarms are loaded', (tester) async {
+  testWidgets('Should display empty state when no alarms are loaded',
+      (tester) async {
     when(() => mockAlarmCubit.state).thenReturn(const AlarmsLoaded([]));
     when(() => mockAlarmCubit.stream).thenAnswer((_) => const Stream.empty());
 
@@ -46,7 +47,7 @@ void main() {
         createdAt: DateTime.now(),
       ),
     ];
-    
+
     when(() => mockAlarmCubit.state).thenReturn(AlarmsLoaded(alarms));
     when(() => mockAlarmCubit.stream).thenAnswer((_) => const Stream.empty());
 

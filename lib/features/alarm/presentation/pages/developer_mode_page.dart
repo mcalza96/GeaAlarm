@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import '../../../core/services/logger_service.dart';
+import 'package:geo_alarm/core/services/logger_service.dart';
 
 class DeveloperModePage extends StatefulWidget {
   const DeveloperModePage({super.key});
@@ -11,7 +11,7 @@ class DeveloperModePage extends StatefulWidget {
 
 class _DeveloperModePageState extends State<DeveloperModePage> {
   String _logs = 'Cargando logs...';
-  final _logger = GetIt.I<ILoggerService>();
+  late final LoggerService _logger = GetIt.I<LoggerService>();
 
   @override
   void initState() {

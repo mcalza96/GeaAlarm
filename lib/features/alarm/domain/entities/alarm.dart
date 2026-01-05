@@ -1,6 +1,4 @@
-import 'package:equatable/equatable.dart';
-
-class Alarm extends Equatable {
+class Alarm {
   final String id;
   final double latitude;
   final double longitude;
@@ -40,13 +38,25 @@ class Alarm extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-        id,
-        latitude,
-        longitude,
-        radius,
-        label,
-        isActive,
-        createdAt,
-      ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Alarm &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          latitude == other.latitude &&
+          longitude == other.longitude &&
+          radius == other.radius &&
+          label == other.label &&
+          isActive == other.isActive &&
+          createdAt == other.createdAt;
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      latitude.hashCode ^
+      longitude.hashCode ^
+      radius.hashCode ^
+      label.hashCode ^
+      isActive.hashCode ^
+      createdAt.hashCode;
 }

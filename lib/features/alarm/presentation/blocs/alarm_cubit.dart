@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
@@ -41,24 +42,34 @@ class AlarmCubit extends Cubit<AlarmState> {
     double radius = 500,
     String label = 'Nueva Alarma',
   }) async {
-    final newAlarm = Alarm(
-      id: const Uuid().v4(),
-      latitude: lat,
-      longitude: lng,
-      radius: radius,
-      label: label,
-      isActive: true,
-      createdAt: DateTime.now(),
-    );
+    try {
+      final newAlarm = Alarm(
+        id: const Uuid().v4(),
+        latitude: lat,
+        longitude: lng,
+        radius: radius,
+        label: label,
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
 
-    final result = await addAlarmUseCase(newAlarm);
-    result.fold(
-      (failure) => emit(AlarmError(failure.message)),
-      (_) {
-        geofenceService.registerGeofence(newAlarm);
-        loadAlarms();
-      },
-    );
+      debugPrint('Agregando nueva alarma: ${newAlarm.label}');
+      final result = await addAlarmUseCase(newAlarm);
+      result.fold(
+        (failure) {
+          debugPrint('Error al agregar alarma (failure): ${failure.message}');
+          emit(AlarmError(failure.message));
+        },
+        (_) {
+          debugPrint('Alarma agregada exitosamente a la base de datos');
+          geofenceService.registerGeofence(newAlarm);
+          loadAlarms();
+        },
+      );
+    } catch (e) {
+      debugPrint('Error fatal al agregar alarma: $e');
+      emit(AlarmError(e.toString()));
+    }
   }
 
   Future<void> updateAlarmStatus(String id) async {

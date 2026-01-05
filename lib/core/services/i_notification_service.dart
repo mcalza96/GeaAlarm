@@ -5,5 +5,6 @@ abstract class INotificationService {
     required String title,
     required String body,
   });
+  Stream<String> get onNotificationAction;
   Future<void> cancelNotification(int id);
 }

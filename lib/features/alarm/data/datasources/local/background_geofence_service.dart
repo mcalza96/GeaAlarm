@@ -1,90 +1,137 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:injectable/injectable.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geo_alarm/features/alarm/domain/entities/alarm.dart';
 import 'package:geo_alarm/features/alarm/domain/repositories/i_geofence_service.dart';
+import 'package:geo_alarm/core/services/wake_lock_manager.dart';
+import 'background_task_handler.dart';
 
+/// Implementación del servicio de geofencing usando foreground service
+/// para garantizar ejecución resiliente en segundo plano.
 @LazySingleton(as: IGeofenceService)
 class BackgroundGeofenceService implements IGeofenceService {
+  final WakeLockManager _wakeLockManager;
   final _controller = StreamController<String>.broadcast();
-  final Map<String, StreamSubscription<Position>> _activeGeofences = {};
+  final Set<String> _registeredAlarmIds = {};
+  bool _isServiceRunning = false;
+
+  BackgroundGeofenceService(this._wakeLockManager) {
+    _initializeReceivePort();
+  }
 
   @override
   Stream<String> get onGeofenceTriggered => _controller.stream;
 
+  /// Inicializa el receptor de datos del Isolate
+  void _initializeReceivePort() {
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+  }
+
+  /// Callback que recibe datos del Isolate
+  void _onTaskData(dynamic data) {
+    if (data is Map) {
+      final type = data['type'] as String?;
+
+      if (type == 'alarm_triggered') {
+        final alarmId = data['alarmId'] as String;
+        final distance = data['distance'] as double;
+        debugPrint(
+            '[GEOFENCE_SERVICE] Alarma disparada desde Isolate: $alarmId (${distance.toStringAsFixed(2)}m)');
+        _controller.add(alarmId);
+      } else if (type == 'wake_lock_data') {
+        final speed = data['speed'] as double;
+        final nearestDistance = data['nearestDistance'] as double;
+        _wakeLockManager.evaluateWakeLock(
+          speedMps: speed,
+          nearestAlarmDistanceMeters: nearestDistance,
+        );
+      }
+    }
+  }
+
   @override
   Future<void> registerGeofence(Alarm alarm) async {
     debugPrint(
-        '[GEOFENCE] Registrando geocerca para alarma: ${alarm.label} (${alarm.id})');
-    debugPrint(
-        '[GEOFENCE] Ubicación: (${alarm.latitude}, ${alarm.longitude}), Radio: ${alarm.radius}m');
+        '[GEOFENCE_SERVICE] Registrando geocerca para alarma: ${alarm.label} (${alarm.id})');
 
-    // Cancelar geofence existente si hay uno
-    await removeGeofence(alarm.id);
+    _registeredAlarmIds.add(alarm.id);
 
-    // Configurar el stream de posición
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Actualizar cada 10 metros
-    );
+    // Iniciar el servicio de foreground si no está corriendo
+    if (!_isServiceRunning) {
+      await _startForegroundService();
+    }
 
-    // Escuchar cambios de posición
-    final subscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      final distance = _calculateDistance(
-        position.latitude,
-        position.longitude,
-        alarm.latitude,
-        alarm.longitude,
-      );
-
-      debugPrint(
-          '[GEOFENCE] Posición actual: (${position.latitude}, ${position.longitude})');
-      debugPrint(
-          '[GEOFENCE] Distancia a ${alarm.label}: ${distance.toStringAsFixed(2)}m');
-
-      // Si está dentro del radio, disparar la alarma
-      if (distance <= alarm.radius) {
-        debugPrint(
-            '[GEOFENCE] ¡ALARMA ACTIVADA! Entraste en el radio de ${alarm.label}');
-        _controller.add(alarm.id);
-      }
-    });
-
-    _activeGeofences[alarm.id] = subscription;
+    debugPrint('[GEOFENCE_SERVICE] Geocerca registrada exitosamente');
   }
 
   @override
   Future<void> removeGeofence(String id) async {
-    final subscription = _activeGeofences.remove(id);
-    await subscription?.cancel();
+    debugPrint('[GEOFENCE_SERVICE] Removiendo geocerca: $id');
+    _registeredAlarmIds.remove(id);
+
+    // Si no quedan alarmas, detener el servicio
+    if (_registeredAlarmIds.isEmpty) {
+      await _stopForegroundService();
+    }
   }
 
-  /// Calcula la distancia entre dos coordenadas usando la fórmula de Haversine
-  double _calculateDistance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadius = 6371000.0; // Radio de la Tierra en metros
-    final dLat = _toRadians(lat2 - lat1);
-    final dLon = _toRadians(lon2 - lon1);
+  /// Inicia el servicio de foreground
+  Future<void> _startForegroundService() async {
+    if (_isServiceRunning) {
+      debugPrint('[GEOFENCE_SERVICE] El servicio ya está corriendo');
+      return;
+    }
 
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) *
-            cos(_toRadians(lat2)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
+    try {
+      // Verificar si el servicio puede iniciarse
+      final isRunning = await FlutterForegroundTask.isRunningService;
+      if (!isRunning) {
+        await FlutterForegroundTask.startService(
+          serviceId: 256,
+          notificationTitle: 'GeoAlarm activo',
+          notificationText: 'Monitoreando tus alarmas de ubicación',
+          notificationIcon: null,
+          notificationButtons: [
+            const NotificationButton(id: 'stop', text: 'Detener'),
+          ],
+          callback: backgroundTaskHandler,
+        );
 
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
+        _isServiceRunning = true;
+        debugPrint('[GEOFENCE_SERVICE] Servicio de foreground iniciado');
+      } else {
+        _isServiceRunning = true;
+        debugPrint('[GEOFENCE_SERVICE] Servicio ya estaba corriendo');
+      }
+    } catch (e) {
+      debugPrint('[GEOFENCE_SERVICE] Error al iniciar servicio: $e');
+    }
   }
 
-  double _toRadians(double degrees) {
-    return degrees * pi / 180;
+  /// Detiene el servicio de foreground
+  Future<void> _stopForegroundService() async {
+    if (!_isServiceRunning) {
+      debugPrint('[GEOFENCE_SERVICE] El servicio no está corriendo');
+      return;
+    }
+
+    try {
+      await FlutterForegroundTask.stopService();
+      _isServiceRunning = false;
+
+      // Desactivar wake lock
+      await _wakeLockManager.forceDisable();
+
+      debugPrint('[GEOFENCE_SERVICE] Servicio de foreground detenido');
+    } catch (e) {
+      debugPrint('[GEOFENCE_SERVICE] Error al detener servicio: $e');
+    }
+  }
+
+  /// Limpia recursos
+  void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
+    _controller.close();
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:injectable/injectable.dart';
 
@@ -6,6 +7,10 @@ import 'i_notification_service.dart';
 @LazySingleton(as: INotificationService)
 class NotificationServiceImpl implements INotificationService {
   final _notifications = FlutterLocalNotificationsPlugin();
+  final _actionStreamController = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> get onNotificationAction => _actionStreamController.stream;
 
   @override
   Future<void> init() async {
@@ -19,6 +24,12 @@ class NotificationServiceImpl implements INotificationService {
 
     await _notifications.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: (response) {
+        if (response.actionId == 'action_stop_alarm' &&
+            response.payload != null) {
+          _actionStreamController.add(response.payload!);
+        }
+      },
     );
   }
 
@@ -28,32 +39,42 @@ class NotificationServiceImpl implements INotificationService {
     required String title,
     required String body,
   }) async {
-    const android = AndroidNotificationDetails(
-      'alarm_channel',
-      'Alarmas de Destino',
-      channelDescription:
-          'Notificaciones para despertarte al llegar a tu destino',
-      importance: Importance.max,
-      priority: Priority.high,
-      fullScreenIntent: true,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      playSound: true,
-      // sound: RawResourceAndroidNotificationSound('alarm'),
-    );
-
-    const ios = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      sound: 'alarm.aiff',
-      interruptionLevel: InterruptionLevel.critical,
-    );
-
     await _notifications.show(
       id.hashCode,
       title,
       body,
-      const NotificationDetails(android: android, iOS: ios),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel_critical', // ID de canal diferente para alertas críticas
+          'Alarmas de Destino (Críticas)',
+          channelDescription:
+              'Notificaciones de pantalla completa para llegada a destino',
+          importance: Importance.max,
+          priority: Priority.high,
+          fullScreenIntent: true, // Habilita Full Screen Intent
+          visibility: NotificationVisibility.public, // Visible en bloqueo
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          category: AndroidNotificationCategory.alarm,
+          playSound: true,
+          enableVibration: true,
+          actions: [
+            AndroidNotificationAction(
+              'action_stop_alarm',
+              'DETENER ALARMA',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ],
+          // sound: RawResourceAndroidNotificationSound('alarm'),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'alarm.aiff',
+          interruptionLevel: InterruptionLevel.critical, // Alerta crítica iOS
+        ),
+      ),
       payload: id,
     );
   }

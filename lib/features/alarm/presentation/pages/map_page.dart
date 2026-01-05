@@ -1,8 +1,7 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../blocs/map_cubit.dart';
 import '../blocs/map_state.dart';
 import '../blocs/alarm_cubit.dart';
@@ -17,26 +16,40 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   GoogleMapController? _mapController;
-  LatLng? _currentPosition;
   bool _isSheetOpen = false;
+  double? _lastRadius; // Para rastrear cambios en el radio
+  LatLng? _lastSelectedLocation; // Para rastrear cambios en la ubicación
 
   @override
   void initState() {
     super.initState();
-    _checkPermissions();
+    // Obtener ubicación inicial a través del Cubit
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MapCubit>().getUserInitialLocation();
+    });
   }
 
-  Future<void> _checkPermissions() async {
-    final status = await Permission.locationWhenInUse.request();
-    if (status.isGranted) {
-      final position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-      });
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentPosition!, 15),
-      );
-    }
+  // Calcula los bounds que contienen completamente el círculo de la geocerca
+  LatLngBounds _calculateBoundsFromRadius(
+      LatLng center, double radiusInMeters) {
+    // Aproximación: 1 grado de latitud ≈ 111km
+    // Para longitud, ajustamos por la latitud actual
+    const double metersPerDegreeLat = 111000;
+    final double metersPerDegreeLng = 111000 * cos(center.latitude * pi / 180);
+
+    final double latOffset = radiusInMeters / metersPerDegreeLat;
+    final double lngOffset = radiusInMeters / metersPerDegreeLng;
+
+    return LatLngBounds(
+      southwest: LatLng(
+        center.latitude - latOffset,
+        center.longitude - lngOffset,
+      ),
+      northeast: LatLng(
+        center.latitude + latOffset,
+        center.longitude + lngOffset,
+      ),
+    );
   }
 
   @override
@@ -61,10 +74,37 @@ class _MapPageState extends State<MapPage> {
           });
         }
 
-        // Move camera when selected location changes (e.g. from search)
-        if (state.selectedLocation != null && !state.isSelecting) {
+        // Auto-zoom dinámico basado en el radio de la geocerca
+        // Usa LatLngBounds para garantizar que el círculo siempre sea visible
+        if (state.selectedLocation != null &&
+            state.currentRadius != _lastRadius &&
+            _lastRadius != null) {
+          // Solo animar si el cambio es significativo (más de 50m)
+          if ((state.currentRadius - _lastRadius!).abs() > 50) {
+            _lastRadius = state.currentRadius;
+            final bounds = _calculateBoundsFromRadius(
+              state.selectedLocation!,
+              state.currentRadius,
+            );
+            _mapController?.animateCamera(
+              CameraUpdate.newLatLngBounds(bounds, 80),
+            );
+          } else {
+            _lastRadius = state.currentRadius;
+          }
+        }
+
+        // Centrar cámara cuando cambia la ubicación seleccionada
+        if (state.selectedLocation != null &&
+            state.selectedLocation != _lastSelectedLocation) {
+          _lastSelectedLocation = state.selectedLocation;
+          _lastRadius = state.currentRadius;
+          final bounds = _calculateBoundsFromRadius(
+            state.selectedLocation!,
+            state.currentRadius,
+          );
           _mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(state.selectedLocation!, 16),
+            CameraUpdate.newLatLngBounds(bounds, 80),
           );
         }
 
@@ -75,6 +115,24 @@ class _MapPageState extends State<MapPage> {
         }
       },
       builder: (context, state) {
+        // Mostrar loader mientras se obtiene la ubicación inicial
+        if (state.isInitializing || state.userLocation == null) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Cargando mapa...'),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         return Scaffold(
           appBar: AppBar(
             title: _SearchBar(
@@ -92,8 +150,8 @@ class _MapPageState extends State<MapPage> {
             children: [
               GoogleMap(
                 initialCameraPosition: CameraPosition(
-                  target: _currentPosition ?? const LatLng(0, 0),
-                  zoom: 2,
+                  target: state.userLocation!,
+                  zoom: 15,
                 ),
                 onMapCreated: (controller) => _mapController = controller,
                 myLocationEnabled: true,

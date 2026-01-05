@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:geo_alarm/features/alarm/domain/repositories/i_geofence_service.dart';
 import 'package:geo_alarm/core/services/i_audio_service.dart';
@@ -19,17 +20,26 @@ class AlarmMonitoringCoordinator {
   });
 
   void init() {
+    debugPrint('[COORDINATOR] Inicializando AlarmMonitoringCoordinator...');
     geofenceService.onGeofenceTriggered.listen((alarmId) async {
-      final alarms = await alarmRepository.getAlarms();
-      final alarm = alarms.firstWhere((a) => a.id == alarmId);
+      debugPrint('[COORDINATOR] ¡Geofence disparado! AlarmId: $alarmId');
 
-      await notificationService.showAlarmNotification(
-        id: alarm.id,
-        title: '¡Llegaste a tu destino!',
-        body: 'Has entrado en el radio de: ${alarm.label}',
-      );
+      try {
+        final alarms = await alarmRepository.getAlarms();
+        final alarm = alarms.firstWhere((a) => a.id == alarmId);
 
-      await audioService.playAlarmLoop();
+        debugPrint('[COORDINATOR] Mostrando notificación para: ${alarm.label}');
+        await notificationService.showAlarmNotification(
+          id: alarm.id,
+          title: '¡Llegaste a tu destino!',
+          body: 'Has entrado en el radio de: ${alarm.label}',
+        );
+
+        debugPrint('[COORDINATOR] Reproduciendo sonido de alarma...');
+        await audioService.playAlarmLoop();
+      } catch (e) {
+        debugPrint('[COORDINATOR] ERROR: $e');
+      }
     });
   }
 

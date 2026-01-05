@@ -17,6 +17,15 @@ class IsarAlarmRepository implements IAlarmRepository {
       await isar.alarmModels.put(model);
     });
   }
+
+  @override
+  Future<void> updateAlarm(Alarm alarm) async {
+    // Isar put performs an upsert, so basic logic is identical to save
+    final model = AlarmModel.fromEntity(alarm);
+    await isar.writeTxn(() async {
+      await isar.alarmModels.put(model);
+    });
+  }
   // ... rest of methods will use await _db
 
   @override

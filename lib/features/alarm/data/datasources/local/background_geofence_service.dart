@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:injectable/injectable.dart';
 import 'package:geo_alarm/features/alarm/domain/entities/alarm.dart';
@@ -15,6 +16,11 @@ class BackgroundGeofenceService implements IGeofenceService {
 
   @override
   Future<void> registerGeofence(Alarm alarm) async {
+    debugPrint(
+        '[GEOFENCE] Registrando geocerca para alarma: ${alarm.label} (${alarm.id})');
+    debugPrint(
+        '[GEOFENCE] Ubicación: (${alarm.latitude}, ${alarm.longitude}), Radio: ${alarm.radius}m');
+
     // Cancelar geofence existente si hay uno
     await removeGeofence(alarm.id);
 
@@ -35,8 +41,15 @@ class BackgroundGeofenceService implements IGeofenceService {
         alarm.longitude,
       );
 
+      debugPrint(
+          '[GEOFENCE] Posición actual: (${position.latitude}, ${position.longitude})');
+      debugPrint(
+          '[GEOFENCE] Distancia a ${alarm.label}: ${distance.toStringAsFixed(2)}m');
+
       // Si está dentro del radio, disparar la alarma
       if (distance <= alarm.radius) {
+        debugPrint(
+            '[GEOFENCE] ¡ALARMA ACTIVADA! Entraste en el radio de ${alarm.label}');
         _controller.add(alarm.id);
       }
     });

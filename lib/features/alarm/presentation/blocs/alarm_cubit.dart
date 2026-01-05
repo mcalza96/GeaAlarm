@@ -7,6 +7,7 @@ import '../../domain/usecases/add_alarm.dart';
 import '../../domain/usecases/delete_alarm.dart';
 import '../../domain/usecases/get_alarms.dart';
 import '../../domain/usecases/toggle_alarm_status.dart';
+import '../../domain/usecases/update_alarm.dart';
 import '../../domain/repositories/i_geofence_service.dart';
 import '../../../../core/usecases/usecase.dart';
 import 'alarm_state.dart';
@@ -18,6 +19,7 @@ class AlarmCubit extends Cubit<AlarmState> {
   final DeleteAlarm deleteAlarmUseCase;
   final ToggleAlarmStatus toggleAlarmStatusUseCase;
   final IGeofenceService geofenceService;
+  final UpdateAlarm updateAlarmUseCase;
 
   AlarmCubit({
     required this.addAlarmUseCase,
@@ -25,8 +27,57 @@ class AlarmCubit extends Cubit<AlarmState> {
     required this.deleteAlarmUseCase,
     required this.toggleAlarmStatusUseCase,
     required this.geofenceService,
+    required this.updateAlarmUseCase,
   }) : super(const AlarmInitial());
 
+  // ... (previous methods)
+
+  Future<void> updateExistingAlarm({
+    required String id,
+    required double lat,
+    required double lng,
+    required double radius,
+    required String label,
+    required bool isActive,
+    required DateTime createdAt,
+  }) async {
+    try {
+      final updatedAlarm = Alarm(
+        id: id,
+        latitude: lat,
+        longitude: lng,
+        radius: radius,
+        label: label,
+        isActive: isActive,
+        createdAt: createdAt,
+      );
+
+      debugPrint('Actualizando alarma: ${updatedAlarm.label}');
+      final result = await updateAlarmUseCase(updatedAlarm);
+      result.fold(
+        (failure) {
+          debugPrint('Error al actualizar alarma: ${failure.message}');
+          emit(AlarmError(failure.message));
+        },
+        (_) {
+          debugPrint('Alarma actualizada exitosamente');
+          // Actualizar geocerca
+          if (updatedAlarm.isActive) {
+            geofenceService.registerGeofence(updatedAlarm);
+          } else {
+            geofenceService.removeGeofence(updatedAlarm.id);
+          }
+          loadAlarms();
+        },
+      );
+    } catch (e) {
+      debugPrint('Error fatal al actualizar alarma: $e');
+      emit(AlarmError(e.toString()));
+    }
+  }
+
+  // ... (deleteAlarm)
+  // ... (deleteAlarm)
   Future<void> loadAlarms() async {
     emit(const AlarmLoading());
     final result = await getAlarmsUseCase(NoParams());

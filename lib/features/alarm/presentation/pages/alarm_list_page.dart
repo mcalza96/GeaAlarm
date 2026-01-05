@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geo_alarm/features/alarm/presentation/blocs/alarm_cubit.dart';
+import 'package:geo_alarm/features/alarm/presentation/blocs/map_cubit.dart';
 import 'package:geo_alarm/features/alarm/presentation/blocs/alarm_state.dart';
 import 'package:geo_alarm/features/alarm/domain/entities/alarm.dart';
 import 'package:geo_alarm/features/alarm/presentation/pages/map_page.dart';
@@ -82,6 +83,16 @@ class _AlarmTile extends StatelessWidget {
             value: alarm.isActive,
             onChanged: (_) =>
                 context.read<AlarmCubit>().updateAlarmStatus(alarm.id),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.blue),
+            onPressed: () {
+              context.read<MapCubit>().loadAlarmToEdit(alarm);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MapPage()),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),

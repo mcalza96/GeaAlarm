@@ -22,7 +22,9 @@ class AlarmSetupSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Configurar Alarma',
+                state.editingAlarmId != null
+                    ? 'Editar Alarma'
+                    : 'Configurar Alarma',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
@@ -65,17 +67,35 @@ class AlarmSetupSheet extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: state.selectedLocation != null
                           ? () {
-                              context.read<AlarmCubit>().addNewAlarm(
-                                    lat: state.selectedLocation!.latitude,
-                                    lng: state.selectedLocation!.longitude,
-                                    radius: state.currentRadius,
-                                    label: state.currentAddress ?? 'Mi Destino',
-                                  );
+                              if (state.editingAlarmId != null) {
+                                context.read<AlarmCubit>().updateExistingAlarm(
+                                      id: state.editingAlarmId!,
+                                      lat: state.selectedLocation!.latitude,
+                                      lng: state.selectedLocation!.longitude,
+                                      radius: state.currentRadius,
+                                      label:
+                                          state.currentAddress ?? 'Mi Destino',
+                                      isActive:
+                                          state.editingAlarmIsActive ?? true,
+                                      createdAt: state.editingAlarmCreatedAt ??
+                                          DateTime.now(),
+                                    );
+                              } else {
+                                context.read<AlarmCubit>().addNewAlarm(
+                                      lat: state.selectedLocation!.latitude,
+                                      lng: state.selectedLocation!.longitude,
+                                      radius: state.currentRadius,
+                                      label:
+                                          state.currentAddress ?? 'Mi Destino',
+                                    );
+                              }
                               context.read<MapCubit>().resetSelection();
                               Navigator.pop(context);
                             }
                           : null,
-                      child: const Text('Confirmar Alarma'),
+                      child: Text(state.editingAlarmId != null
+                          ? 'Actualizar Alarma'
+                          : 'Confirmar Alarma'),
                     ),
                   ),
                 ],
